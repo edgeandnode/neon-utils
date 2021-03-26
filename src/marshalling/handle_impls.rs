@@ -9,7 +9,7 @@ use std::time::Duration;
 
 impl<T: IntoHandle> IntoHandle for Vec<T> {
     type Handle = JsArray;
-    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> NeonResult<Handle<'c, Self::Handle>> {
+    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> JsResult<'c, Self::Handle> {
         let arr = JsArray::new(cx, 0);
         for i in 0..self.len() {
             let value = self[i].into_handle(cx)?;
@@ -51,7 +51,7 @@ impl<T: FromHandle> FromHandle for Vec<T> {
 
 impl<'a, T0: IntoHandle, T1: IntoHandle> IntoHandle for (T0, T1) {
     type Handle = JsArray;
-    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> NeonResult<Handle<'c, Self::Handle>> {
+    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> JsResult<'c, Self::Handle> {
         let arr = JsArray::new(cx, 0);
         let value = self.0.into_handle(cx)?;
         arr.set(cx, 0, value)?;
@@ -63,7 +63,7 @@ impl<'a, T0: IntoHandle, T1: IntoHandle> IntoHandle for (T0, T1) {
 
 impl IntoHandle for String {
     type Handle = JsString;
-    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> NeonResult<Handle<'c, Self::Handle>> {
+    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> JsResult<'c, Self::Handle> {
         Ok(JsString::new(cx, self))
     }
 }
@@ -72,7 +72,7 @@ impl IntoHandle for Vec<u8> {
     // Better would be Uint8Array, but for our use-cases we are turning them
     // into hex strings anyway so we might as well just go straight there.
     type Handle = JsString;
-    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> NeonResult<Handle<'c, Self::Handle>> {
+    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> JsResult<'c, Self::Handle> {
         let hex: String = self.to_hex();
         hex.into_handle(cx)
     }
@@ -83,7 +83,7 @@ where
     T: IntoHandle,
 {
     type Handle = JsValue;
-    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> NeonResult<Handle<'c, Self::Handle>> {
+    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> JsResult<'c, Self::Handle> {
         Ok(match self {
             Some(t) => t.into_handle(cx)?.upcast(),
             None => cx.null().upcast(),
@@ -93,21 +93,21 @@ where
 
 impl IntoHandle for U256 {
     type Handle = JsString;
-    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> NeonResult<Handle<'c, Self::Handle>> {
+    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> JsResult<'c, Self::Handle> {
         self.encode().into_handle(cx)
     }
 }
 
 impl IntoHandle for f64 {
     type Handle = JsNumber;
-    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> NeonResult<Handle<'c, Self::Handle>> {
+    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> JsResult<'c, Self::Handle> {
         Ok(JsNumber::new(cx, *self))
     }
 }
 
 impl IntoHandle for u64 {
     type Handle = JsNumber;
-    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> NeonResult<Handle<'c, Self::Handle>> {
+    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> JsResult<'c, Self::Handle> {
         if *self > 9007199254740991 {
             throw(cx, "Number exceeded limits of f64")
         } else {
@@ -122,7 +122,7 @@ where
 {
     type Handle = JsString;
 
-    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> NeonResult<Handle<'c, Self::Handle>> {
+    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> JsResult<'c, Self::Handle> {
         self.encode().into_handle(cx)
     }
 }
@@ -169,7 +169,7 @@ impl FromHandle for bool {
 
 impl IntoHandle for bool {
     type Handle = JsBoolean;
-    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> NeonResult<Handle<'c, Self::Handle>> {
+    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> JsResult<'c, Self::Handle> {
         Ok(cx.boolean(*self))
     }
 }

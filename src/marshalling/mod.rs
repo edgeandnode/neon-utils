@@ -1,10 +1,11 @@
-use neon::{prelude::*, result::Throw};
+use neon::prelude::*;
 pub mod codecs;
 mod handle_impls;
+use crate::errors::throw;
 
 pub trait IntoHandle {
     type Handle: Value;
-    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> NeonResult<Handle<'c, Self::Handle>>;
+    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> JsResult<'c, Self::Handle>;
 }
 
 pub trait FromHandle {
@@ -13,9 +14,14 @@ pub trait FromHandle {
         Self: Sized;
 }
 
-pub fn throw<'a, S: AsRef<str>, T>(cx: &mut impl Context<'a>, msg: S) -> Result<T, Throw> {
-    let error = cx.error(msg)?;
-    cx.throw(error)
+pub trait IntoError {
+    fn into_error<'c>(&self, cx: &mut impl Context<'c>) -> JsResult<'c, JsError>;
+}
+
+impl IntoError for &'_ str {
+    fn into_error<'c>(&self, cx: &mut impl Context<'c>) -> JsResult<'c, JsError> {
+        cx.error(self)
+    }
 }
 
 /// A helper to map Results<T, E> to NeonResult with a string message
@@ -65,7 +71,7 @@ macro_rules! js_object {
                 let handle = ($v).into_handle($cx)?;
                 js.set($cx, stringify!($k), handle)?;
             )*
-            js
+            Ok(js)
         }
     }
 }
