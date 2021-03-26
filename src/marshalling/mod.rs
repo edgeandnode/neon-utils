@@ -2,9 +2,9 @@ use neon::{prelude::*, result::Throw};
 pub mod codecs;
 mod handle_impls;
 
-pub trait IntoHandle<'a> {
+pub trait IntoHandle {
     type Handle: Value;
-    fn into_handle(&self, cx: &mut impl Context<'a>) -> NeonResult<Handle<'a, Self::Handle>>;
+    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> NeonResult<Handle<'c, Self::Handle>>;
 }
 
 pub trait FromHandle {
