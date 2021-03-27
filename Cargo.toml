@@ -13,7 +13,7 @@ primitive-types = "0.8"
 rustc-hex = "2.1"
 faster-hex = "0.5"
 firestorm = "0.4.5"
-
+atomic-take = "1.0"
 
 [build-dependencies]
 neon-build = "0.8.0"

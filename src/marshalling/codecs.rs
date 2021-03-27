@@ -61,6 +61,10 @@ impl Decode<str> for Bytes32 {
     }
 }
 
+// This appears like a job for const generics, but I had trouble using
+// the derived values. Eg: String::with_capacity(/* what? */) and [0; N*2]
+// These error right now, which are likely just limitations of the const
+// generics MVP.
 impl Encode for Bytes32 {
     fn encode(&self) -> String {
         profile_method!(encode);
