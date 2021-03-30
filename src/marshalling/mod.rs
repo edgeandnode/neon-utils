@@ -2,6 +2,7 @@ use neon::prelude::*;
 pub mod codecs;
 mod handle_impls;
 use crate::errors::throw;
+use never::Never;
 
 pub trait IntoHandle {
     type Handle: Value;
@@ -21,6 +22,12 @@ pub trait IntoError {
 impl IntoError for &'_ str {
     fn into_error<'c>(&self, cx: &mut impl Context<'c>) -> JsResult<'c, JsError> {
         cx.error(self)
+    }
+}
+
+impl IntoError for Never {
+    fn into_error<'c>(&self, _cx: &mut impl Context<'c>) -> JsResult<'c, JsError> {
+        unreachable!()
     }
 }
 
@@ -55,7 +62,7 @@ pub trait Arg<K> {
     fn arg<T: FromHandle>(&mut self, key: K) -> NeonResult<T>;
 }
 
-impl Arg<i32> for FunctionContext<'_> {
+impl<O: neon::object::This> Arg<i32> for CallContext<'_, O> {
     fn arg<T: FromHandle>(&mut self, key: i32) -> NeonResult<T> {
         let arg = self.argument::<JsValue>(key)?;
         T::from_handle(arg, self)
