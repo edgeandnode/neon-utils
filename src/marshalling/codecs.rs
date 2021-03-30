@@ -12,16 +12,16 @@ pub trait Encode {
     fn encode(&self) -> String;
 }
 
-impl Decode<str> for Address {
+impl<const N: usize> Decode<str> for [u8; N] {
     fn decode(s: &str) -> Result<Self, ()>
     where
         Self: Sized,
     {
         profile_method!(decode);
 
-        let mut result = Address::default();
+        let mut result = [0; N];
         let mut bytes = s.as_bytes();
-        if bytes.starts_with("0x".as_bytes()) {
+        if bytes.starts_with(b"0x") {
             bytes = &bytes[2..];
         }
         faster_hex::hex_decode(bytes, &mut result[..]).map_err(|_| ())?;
@@ -41,23 +41,6 @@ impl Encode for Address {
         result.push_str(std::str::from_utf8(&bytes).unwrap());
         debug_assert!(result.len() == LEN);
         result
-    }
-}
-
-impl Decode<str> for Bytes32 {
-    fn decode(s: &str) -> Result<Self, ()>
-    where
-        Self: Sized,
-    {
-        profile_method!(decode);
-
-        let mut result = Bytes32::default();
-        let mut bytes = s.as_bytes();
-        if bytes.starts_with("0x".as_bytes()) {
-            bytes = &bytes[2..];
-        }
-        faster_hex::hex_decode(bytes, &mut result[..]).map_err(|_| ())?;
-        Ok(result)
     }
 }
 

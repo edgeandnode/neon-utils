@@ -1,10 +1,12 @@
 use super::codecs::*;
 use super::*;
-use crate::prelude::*;
 use primitive_types::U256;
 use rustc_hex::FromHex as _;
 use rustc_hex::ToHex as _;
-use secp256k1::SecretKey;
+use secp256k1::{
+    recovery::{RecoverableSignature, RecoveryId},
+    SecretKey,
+};
 use std::time::Duration;
 
 impl<T: IntoHandle> IntoHandle for Vec<T> {
@@ -127,6 +129,19 @@ where
     }
 }
 
+impl<const N: usize> FromHandle for [u8; N]
+where
+    [u8; N]: Decode<str>,
+{
+    fn from_handle<'a, V: Value>(handle: Handle<V>, cx: &mut impl Context<'a>) -> NeonResult<Self>
+    where
+        Self: Sized,
+    {
+        let s = String::from_handle(handle, cx)?;
+        decode(s.as_str()).js_map_err(cx, |_| format!("Failed to parse [u8; N] from \"{}\"", s))
+    }
+}
+
 impl FromHandle for String {
     fn from_handle<'a, V: Value>(handle: Handle<V>, cx: &mut impl Context<'a>) -> NeonResult<Self>
     where
@@ -134,16 +149,6 @@ impl FromHandle for String {
     {
         let js_str: JsString = *handle.downcast_or_throw(cx)?;
         Ok(js_str.value())
-    }
-}
-
-impl FromHandle for Address {
-    fn from_handle<'a, V: Value>(handle: Handle<V>, cx: &mut impl Context<'a>) -> NeonResult<Self>
-    where
-        Self: Sized,
-    {
-        let s = String::from_handle(handle, cx)?;
-        decode(s.as_str()).js_map_err(cx, |_| format!("Failed to parse Address from \"{}\"", s))
     }
 }
 
@@ -221,16 +226,6 @@ impl FromHandle for Duration {
     }
 }
 
-impl FromHandle for Bytes32 {
-    fn from_handle<'a, V: Value>(handle: Handle<V>, cx: &mut impl Context<'a>) -> NeonResult<Self>
-    where
-        Self: Sized,
-    {
-        let s = String::from_handle(handle, cx)?;
-        decode(s.as_str()).js_map_err(cx, |_| format!("Failed to parse Bytes32 from \"{}\"", s))
-    }
-}
-
 impl FromHandle for U256 {
     fn from_handle<'a, V: Value>(handle: Handle<V>, cx: &mut impl Context<'a>) -> NeonResult<Self>
     where
@@ -248,5 +243,32 @@ impl FromHandle for SecretKey {
     {
         let s = String::from_handle(handle, cx)?;
         s.parse().js_map_err(cx, |_| "Failed to parse secret key")
+    }
+}
+
+impl FromHandle for RecoverableSignature {
+    fn from_handle<'a, V: Value>(handle: Handle<V>, cx: &mut impl Context<'a>) -> NeonResult<Self>
+    where
+        Self: Sized,
+    {
+        let data = <[u8; 65]>::from_handle(handle, cx)?;
+
+        let recovery_id = data[64];
+
+        let recovery_id = match recovery_id {
+            0 | 1 => RecoveryId::from_i32(recovery_id as i32).unwrap(),
+            27 | 28 => RecoveryId::from_i32((recovery_id - 27) as i32).unwrap(),
+            _ => return throw(cx, "Invalid recovery id"),
+        };
+
+        RecoverableSignature::from_compact(&data[..64], recovery_id)
+            .js_map_err(cx, |_| "Failed to parse RecoverableSignature")
+    }
+}
+
+impl IntoHandle for () {
+    type Handle = JsUndefined;
+    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> JsResult<'c, Self::Handle> {
+        Ok(cx.undefined())
     }
 }
