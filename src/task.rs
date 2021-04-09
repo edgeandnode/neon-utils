@@ -1,4 +1,5 @@
-use crate::marshalling::{IntoError, IntoHandle};
+use crate::errors::{IntoError, Terminal};
+use crate::marshalling::IntoHandle;
 use atomic_take::AtomicTake;
 use neon::prelude::*;
 
@@ -19,6 +20,7 @@ where
     F: 'static + Send + FnOnce() -> Result<Ok, Err>,
     Err: 'static + Send + IntoError,
     Ok: 'static + Send + IntoHandle,
+    Result<Ok, Err>: Terminal<Handle = Ok::Handle>,
 {
     type Output = Ok;
     type Error = Err;
@@ -31,10 +33,10 @@ where
 
     fn complete(
         self,
-        mut cx: TaskContext,
+        cx: TaskContext,
         result: Result<Self::Output, Self::Error>,
     ) -> JsResult<Self::JsEvent> {
-        result.into_handle(&mut cx)
+        result.finish(cx)
     }
 }
 
@@ -45,6 +47,7 @@ where
     F: 'static + Send + FnOnce() -> Result<Ok, Err>,
     Err: 'static + Send + IntoError,
     Ok: 'static + Send + IntoHandle,
+    Result<Ok, Err>: Terminal<Handle = Ok::Handle>,
 {
     let task = TaskWrapper::new(f);
     task.schedule(callback);
