@@ -2,6 +2,7 @@ use crate::errors::{LazyFmt, MaybeThrown, SafeJsResult, SafeResult};
 
 use super::codecs::*;
 use super::*;
+use neon::types::JsArrayBuffer;
 use primitive_types::U256;
 use rustc_hex::{FromHex as _, ToHex as _};
 use secp256k1::{
@@ -197,6 +198,15 @@ impl FromHandle for Vec<u8> {
     where
         Self: Sized,
     {
+        // TODO: We want the error to indicate that either string or buffer
+        // was ok, but this error was handled and only the string error
+        // is seen if an invalid type is specified.
+        if let Ok(buffer) = handle.downcast::<JsArrayBuffer>() {
+            let lock = cx.lock();
+            let binary = buffer.borrow(&lock);
+            return Ok(binary.as_slice().to_owned());
+        }
+
         let s = String::from_handle(handle, cx)?;
         let v = s.from_hex().map_err(|_| "Invalid hex")?;
         Ok(v)
