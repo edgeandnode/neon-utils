@@ -68,6 +68,13 @@ impl<'a, T0: IntoHandle, T1: IntoHandle> IntoHandle for (T0, T1) {
 impl IntoHandle for String {
     type Handle = JsString;
     fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> SafeJsResult<'c, Self::Handle> {
+        self.as_str().into_handle(cx)
+    }
+}
+
+impl IntoHandle for &'_ str {
+    type Handle = JsString;
+    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> SafeJsResult<'c, Self::Handle> {
         Ok(JsString::new(cx, self))
     }
 }
