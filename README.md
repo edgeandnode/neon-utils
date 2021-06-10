@@ -1,5 +1,3 @@
-# native-utils
-
 A collection of tools for working with neon-bindings to interop between node and Rust.
 
 * Serialize to/from special types like `Duration`, `U256`, `Vec<u8>` (from a hex `string` or `ArrayBuffer`), `RecoverableSignature`, etc.
