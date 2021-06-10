@@ -3,6 +3,8 @@ pub mod codecs;
 mod handle_impls;
 use crate::errors::{SafeJsResult, SafeResult};
 
+pub use handle_impls::AsArrayBuffer;
+
 pub trait IntoHandle {
     type Handle: Value;
     fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> SafeJsResult<'c, Self::Handle>;

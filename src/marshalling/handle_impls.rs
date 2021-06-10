@@ -9,6 +9,7 @@ use secp256k1::{
     recovery::{RecoverableSignature, RecoveryId},
     SecretKey,
 };
+use std::convert::TryInto;
 use std::time::Duration;
 
 impl<T: IntoHandle> IntoHandle for Vec<T> {
@@ -86,6 +87,29 @@ impl IntoHandle for Vec<u8> {
     fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> SafeJsResult<'c, Self::Handle> {
         let hex: String = self.to_hex();
         hex.into_handle(cx)
+    }
+}
+
+// Specify that the data should be converted to an ArrayBuffer instead of the default hex string.
+pub struct AsArrayBuffer(pub Vec<u8>);
+
+impl IntoHandle for AsArrayBuffer {
+    type Handle = JsArrayBuffer;
+    fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> SafeJsResult<'c, Self::Handle> {
+        let size: u32 = self
+            .0
+            .len()
+            .try_into()
+            .map_err(|_| "Array to large for JavaScript")?;
+        let mut buffer = cx.array_buffer(size)?;
+
+        {
+            let lock = cx.lock();
+            let binary = buffer.borrow_mut(&lock);
+            binary.as_mut_slice().copy_from_slice(&self.0);
+        }
+
+        Ok(buffer)
     }
 }
 
