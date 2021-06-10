@@ -1,10 +1,13 @@
 [package]
-name = "native-utils"
-version = "0.1.0"
+name = "neon-utils"
+version = "1.0.0"
 authors = ["Zac Burns <That3Percent@gmail.com>"]
 edition = "2018"
+license = "MIT"
+description = "A collection of utilities for use with neon-bindings"
+categories = ["web-programming", "external-ffi-bindings", "asynchronous"]
+keywords = ["neon", "node"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 neon = "0.8"
