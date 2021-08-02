@@ -2,7 +2,7 @@ use crate::errors::{LazyFmt, MaybeThrown, SafeJsResult, SafeResult};
 
 use super::codecs::*;
 use super::*;
-use neon::types::JsArrayBuffer;
+use neon::types::{BinaryData, JsArrayBuffer, JsBuffer};
 use primitive_types::U256;
 use rustc_hex::{FromHex as _, ToHex as _};
 use secp256k1::{
@@ -224,20 +224,38 @@ impl IntoHandle for bool {
     }
 }
 
+fn from_binary<'a, T, V, C>(handle: &Handle<T>, cx: &mut C) -> Result<Vec<u8>, ()>
+where
+    T: Value,
+    V: Value,
+    // https://doc.rust-lang.org/nomicon/hrtb.html
+    for<'x> &'x V: Borrow<Target = BinaryData<'x>>,
+    C: Context<'a>,
+{
+    if let Ok(buffer) = handle.downcast::<V>() {
+        let lock = cx.lock();
+        let binary = buffer.borrow(&lock);
+        return Ok(binary.as_slice().to_owned());
+    }
+    Err(())
+}
+
 impl FromHandle for Vec<u8> {
     fn from_handle<'a, V: Value>(handle: Handle<V>, cx: &mut impl Context<'a>) -> SafeResult<Self>
     where
         Self: Sized,
     {
+        if let Ok(buffer) = from_binary::<V, JsArrayBuffer, _>(&handle, cx) {
+            return Ok(buffer);
+        }
+
+        if let Ok(buffer) = from_binary::<V, JsBuffer, _>(&handle, cx) {
+            return Ok(buffer);
+        }
+
         // TODO: We want the error to indicate that either string or buffer
         // was ok, but this error was handled and only the string error
         // is seen if an invalid type is specified.
-        if let Ok(buffer) = handle.downcast::<JsArrayBuffer>() {
-            let lock = cx.lock();
-            let binary = buffer.borrow(&lock);
-            return Ok(binary.as_slice().to_owned());
-        }
-
         let s = String::from_handle(handle, cx)?;
         let v = s.from_hex().map_err(|_| "Invalid hex")?;
         Ok(v)
