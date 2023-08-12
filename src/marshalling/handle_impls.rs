@@ -2,7 +2,8 @@ use crate::errors::{LazyFmt, MaybeThrown, SafeJsResult, SafeResult};
 
 use super::codecs::*;
 use super::*;
-use neon::types::{BinaryData, JsArrayBuffer, JsBuffer};
+use neon::types::{JsArrayBuffer, JsBuffer};
+use neon::types::buffer::TypedArray;
 use primitive_types::U256;
 use rustc_hex::{FromHex as _, ToHex as _};
 use secp256k1::{
@@ -11,6 +12,8 @@ use secp256k1::{
 };
 use std::convert::TryInto;
 use std::time::Duration;
+use std::borrow::BorrowMut;
+use std::borrow::Borrow;
 
 impl<T: IntoHandle> IntoHandle for Vec<T> {
     type Handle = JsArray;
@@ -29,7 +32,7 @@ impl<T: FromHandle> FromHandle for Option<T> {
     where
         Self: Sized,
     {
-        Ok(if handle.is_a::<JsNull>() || handle.is_a::<JsUndefined>() {
+        Ok(if handle.is_a::<JsNull, _>(cx) || handle.is_a::<JsUndefined, _>(cx) {
             None
         } else {
             Some(T::from_handle(handle, cx)?)
@@ -42,8 +45,8 @@ impl<T: FromHandle> FromHandle for Vec<T> {
     where
         Self: Sized,
     {
-        let js_array: Handle<JsArray> = handle.downcast().map_err(|e| LazyFmt::new(e))?;
-        let len = js_array.len();
+        let js_array: Handle<JsArray> = handle.downcast(cx).map_err(|e| LazyFmt::new(e))?;
+        let len = js_array.len(cx);
         let mut result = Vec::with_capacity(len as usize);
         for i in 0..len {
             let elem: Handle<V> = js_array.get(cx, i)?;
@@ -96,17 +99,17 @@ pub struct AsArrayBuffer(pub Vec<u8>);
 impl IntoHandle for AsArrayBuffer {
     type Handle = JsArrayBuffer;
     fn into_handle<'c>(&self, cx: &mut impl Context<'c>) -> SafeJsResult<'c, Self::Handle> {
-        let size: u32 = self
+        let size: usize = self
             .0
             .len()
             .try_into()
-            .map_err(|_| "Array to large for JavaScript")?;
+            .map_err(|_| "Array too large for JavaScript")?;
         let mut buffer = cx.array_buffer(size)?;
 
         {
-            let lock = cx.lock();
-            let binary = buffer.borrow_mut(&lock);
-            binary.as_mut_slice().copy_from_slice(&self.0);
+            let _lock = cx.lock();
+            let binary = buffer.borrow_mut();
+            binary.as_mut_slice(cx).copy_from_slice(&self.0);
         }
 
         Ok(buffer)
@@ -192,8 +195,8 @@ impl FromHandle for String {
         // This is here because DowncastError is generic over To and From
         // and From is V which would require GAT
         // See also 66e8073c-dd82-4e8e-a62d-0076a1e02f97
-        let js_str: Handle<JsString> = handle.downcast().map_err(|e| LazyFmt::new(e))?;
-        Ok(js_str.value())
+        let js_str: Handle<JsString> = handle.downcast(_cx).map_err(|e| LazyFmt::new(e))?;
+        Ok(js_str.value(_cx))
     }
 }
 
@@ -202,8 +205,8 @@ impl FromHandle for f64 {
     where
         Self: Sized,
     {
-        let js_num: Handle<JsNumber> = handle.downcast().map_err(|e| LazyFmt::new(e))?;
-        Ok(js_num.value())
+        let js_num: Handle<JsNumber> = handle.downcast(_cx).map_err(|e| LazyFmt::new(e))?;
+        Ok(js_num.value(_cx))
     }
 }
 
@@ -212,8 +215,8 @@ impl FromHandle for bool {
     where
         Self: Sized,
     {
-        let js_bool: Handle<JsBoolean> = handle.downcast().map_err(|e| LazyFmt::new(e))?;
-        Ok(js_bool.value())
+        let js_bool: Handle<JsBoolean> = handle.downcast(_cx).map_err(|e| LazyFmt::new(e))?;
+        Ok(js_bool.value(_cx))
     }
 }
 
@@ -227,15 +230,15 @@ impl IntoHandle for bool {
 fn from_binary<'a, T, V, C>(handle: &Handle<T>, cx: &mut C) -> Result<Vec<u8>, ()>
 where
     T: Value,
-    V: Value,
+    V: Value + TypedArray<Item = u8>,
     // https://doc.rust-lang.org/nomicon/hrtb.html
-    for<'x> &'x V: Borrow<Target = BinaryData<'x>>,
+    //for<'x> &'x V: Borrow<Target = BinaryData<'x>>,
     C: Context<'a>,
 {
-    if let Ok(buffer) = handle.downcast::<V>() {
-        let lock = cx.lock();
-        let binary = buffer.borrow(&lock);
-        return Ok(binary.as_slice().to_owned());
+    if let Ok(buffer) = handle.downcast::<V, _>(cx) {
+        let _lock = cx.lock();
+        let binary = buffer.borrow();
+        return Ok(binary.as_slice(cx).to_owned());
     }
     Err(())
 }

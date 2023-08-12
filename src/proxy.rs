@@ -14,19 +14,6 @@ impl<T> Clone for Proxy<T> {
 }
 
 impl<T> Proxy<T> {
-    pub fn this<K: Class<Internals = Self>>(cx: &mut MethodContext<K>) -> Arc<T> {
-        // Get the handle
-        let this = cx.this();
-
-        // Promise that we aren't going to hold
-        // on to the data in the handle longer than cx
-        let guard = cx.lock();
-        let borrow = this.borrow(&guard);
-
-        // Clone the internal Arc
-        borrow.0.clone()
-    }
-
     pub fn new(value: T) -> Self {
         Self(Arc::new(value))
     }
