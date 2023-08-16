@@ -10,7 +10,7 @@ keywords = ["neon", "node"]
 
 
 [dependencies]
-neon = "0.9"
+neon = "0.10"
 secp256k1 = { version = "0.20", features=["recovery"] }
 primitive-types = "0.8"
 rustc-hex = "2.1"

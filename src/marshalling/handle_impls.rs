@@ -42,15 +42,12 @@ impl<T: FromHandle> FromHandle for Vec<T> {
     where
         Self: Sized,
     {
-        let js_array: JsArray = *handle.downcast().map_err(|e| LazyFmt::new(e))?;
-        let len = js_array.len();
-        let mut result = Vec::with_capacity(len as usize);
-        for i in 0..len {
-            let elem = js_array.get(cx, i)?;
-            let value = T::from_handle(elem, cx)?;
-            result.push(value);
-        }
-        Ok(result)
+        let js_array: Handle<JsArray> = handle.downcast().map_err(|e| LazyFmt::new(e))?;
+        js_array
+            .to_vec(cx)?
+            .into_iter()
+            .map(|handle| T::from_handle(handle, cx))
+            .collect::<Result<Vec<_>, _>>()
     }
 }
 
@@ -192,7 +189,7 @@ impl FromHandle for String {
         // This is here because DowncastError is generic over To and From
         // and From is V which would require GAT
         // See also 66e8073c-dd82-4e8e-a62d-0076a1e02f97
-        let js_str: JsString = *handle.downcast().map_err(|e| LazyFmt::new(e))?;
+        let js_str: Handle<JsString> = handle.downcast().map_err(|e| LazyFmt::new(e))?;
         Ok(js_str.value())
     }
 }
@@ -202,7 +199,7 @@ impl FromHandle for f64 {
     where
         Self: Sized,
     {
-        let js_num: JsNumber = *handle.downcast().map_err(|e| LazyFmt::new(e))?;
+        let js_num: Handle<JsNumber> = handle.downcast().map_err(|e| LazyFmt::new(e))?;
         Ok(js_num.value())
     }
 }
@@ -212,7 +209,7 @@ impl FromHandle for bool {
     where
         Self: Sized,
     {
-        let js_bool: JsBoolean = *handle.downcast().map_err(|e| LazyFmt::new(e))?;
+        let js_bool: Handle<JsBoolean> = handle.downcast().map_err(|e| LazyFmt::new(e))?;
         Ok(js_bool.value())
     }
 }
