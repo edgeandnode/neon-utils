@@ -5,10 +5,8 @@ use super::*;
 use neon::types::{BinaryData, JsArrayBuffer, JsBuffer};
 use primitive_types::U256;
 use rustc_hex::{FromHex as _, ToHex as _};
-use secp256k1::{
-    recovery::{RecoverableSignature, RecoveryId},
-    SecretKey,
-};
+use secp256k1::ecdsa::{RecoverableSignature, RecoveryId};
+use secp256k1::SecretKey;
 use std::convert::TryInto;
 use std::time::Duration;
 
